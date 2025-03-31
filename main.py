@@ -10,8 +10,8 @@ from server.test import Server, ServerRequest
 app = Server(
     enable_tls=True,
     cert_type="CUSTOM",
-    custom_cert_file_loc="/etc/letsencrypt/live/vadim-seliukov-quic-server.com/fullchain.pem",
-    custom_cert_key_file_loc="/etc/letsencrypt/live/vadim-seliukov-quic-server.com/privkey.pem"
+    custom_cert_file_loc="/app/cert.pem",
+    custom_cert_key_file_loc="/app/key.pem"
 )
 
 
