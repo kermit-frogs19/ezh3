@@ -189,10 +189,8 @@ class Server:
 
     async def run(self, host: str = "0.0.0.0", port: int = 443) -> None:
         """Starts QUIC server"""
-        if host not in {self.host, "0.0.0.0"}:
-            self.host = host
-        if port not in {self.port, 443}:
-            self.port = port
+        self.host = host  # Force override
+        self.port = port
 
         self._configure()
 
