@@ -30,7 +30,7 @@ from aioquic.tls import SessionTicket
 
 from ezh3.client.websocket import WebSocket
 from ezh3.client.url import URL
-from ezh3.client.request import Request
+from ezh3.client.server_request import ServerRequest
 from ezh3.client.response import Response
 from ezh3.client.connection import Connection
 
@@ -89,7 +89,7 @@ class Client:
         Perform a GET request.
         """
         return await self._request(
-            Request(method="GET", url=URL(url), headers=headers)
+            ServerRequest(method="GET", url=URL(url), headers=headers)
         )
 
     async def post(self, url: str, data: bytes, headers: dict = None) -> Response:
@@ -97,7 +97,7 @@ class Client:
         Perform a POST request.
         """
         return await self._request(
-            Request(method="POST", url=URL(url), content=data, headers=headers)
+            ServerRequest(method="POST", url=URL(url), body=data, headers=headers)
         )
 
     async def patch(self, url: str, data: bytes, headers: dict = None) -> Response:
@@ -105,7 +105,7 @@ class Client:
         Perform a POST request.
         """
         return await self._request(
-            Request(method="PATCH", url=URL(url), content=data, headers=headers)
+            ServerRequest(method="PATCH", url=URL(url), body=data, headers=headers)
         )
 
     async def put(self, url: str, data: bytes, headers: dict = None) -> Response:
@@ -113,7 +113,7 @@ class Client:
         Perform a POST request.
         """
         return await self._request(
-            Request(method="PUT", url=URL(url), content=data, headers=headers)
+            ServerRequest(method="PUT", url=URL(url), body=data, headers=headers)
         )
 
     async def delete(self, url: str, headers: dict = None) -> Response:
@@ -121,7 +121,7 @@ class Client:
         Perform a POST request.
         """
         return await self._request(
-            Request(method="DELETE", url=URL(url), headers=headers)
+            ServerRequest(method="DELETE", url=URL(url), headers=headers)
         )
 
     async def request(self, method: str, url: str, data: bytes, headers: dict = None) -> Response:
@@ -129,14 +129,14 @@ class Client:
         Perform a POST request.
         """
         return await self._request(
-            Request(method=method, url=URL(url), content=data, headers=headers)
+            ServerRequest(method=method, url=URL(url), body=data, headers=headers)
         )
 
     async def websocket(self, url: str, subprotocols: Optional[List[str]] = None) -> WebSocket:
         """
         Open a WebSocket.
         """
-        request = Request(method="CONNECT", url=URL(url))
+        request = ServerRequest(method="CONNECT", url=URL(url))
 
         connection = await self._connect(request.url.port, request.url.host)
         stream_id = connection._quic.get_next_available_stream_id()
@@ -220,7 +220,7 @@ class Client:
             await protocol.wait_closed()
             transport.close()
 
-    async def _request(self, request: Request) -> Response:
+    async def _request(self, request: ServerRequest) -> Response:
         connection = await self._connect(request.url.port, request.url.host)
         self._is_running = True
 
@@ -251,12 +251,12 @@ class Client:
 
         for event in events:
             if isinstance(event, DataReceived):
-                response.data = event.data.decode()
+                response.content = event.data.decode()
             elif isinstance(event, HeadersReceived):
                 response.headers = event.headers
                 for header, value in event.headers:
                     if header == b":status":
-                        response.code = int(value.decode())
+                        response.status_code = int(value.decode())
         return response
 
     def save_session_ticket(self, ticket: SessionTicket) -> None:
