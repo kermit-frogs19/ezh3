@@ -109,8 +109,6 @@ class Server:
 
             # Auto-generate certificate if missing
             generate_self_signed_cert(self.cert_file_loc, self.cert_key_file_loc)
-            self.cert_file_loc = Path(self.cert_file_loc)
-            self.cert_key_file_loc = Path(self.cert_key_file_loc)
 
         if self.enable_tls:
             if not self.custom_cert_file_loc:
@@ -125,7 +123,7 @@ class Server:
         else:
             self.configuration.verify_mode = ssl.CERT_NONE  # **Disable TLS in QUIC**
 
-        self.configuration.load_cert_chain(self.cert_file_loc, self.cert_key_file_loc)
+        self.configuration.load_cert_chain(Path(self.cert_file_loc), Path(self.cert_key_file_loc))
 
     def route(self, path: str, method: str = "GET") -> Callable:
         """Decorator for registering a route"""
