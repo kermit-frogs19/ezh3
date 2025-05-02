@@ -7,8 +7,8 @@ from aioquic.h3.events import H3Event, HeadersReceived, DataReceived
 
 from aioquic.quic.events import ProtocolNegotiated, StreamReset, QuicEvent
 
-from new.server.server_request import ServerRequest
-from new.server.responses import *
+from ezh3.server.server_request import ServerRequest
+from ezh3.server.responses import *
 
 
 class ServerConnection(QuicConnectionProtocol):

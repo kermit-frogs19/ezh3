@@ -1,9 +1,9 @@
 import json as json_lib
 from dataclasses import dataclass, field
 
-from new.client.client_request import ClientRequest
-from new.client.url import URL
-from new.client.exceptions import *
+from ezh3.client.client_request import ClientRequest
+from ezh3.client.url import URL
+from ezh3.client.exceptions import *
 
 
 @dataclass

@@ -4,7 +4,7 @@ from collections import defaultdict
 from typing import Dict, Optional, Callable
 import ssl
 from pathlib import Path
-from new.server.certificate import generate_self_signed_cert
+from ezh3.server.certificate import generate_self_signed_cert
 from typing import Literal
 
 from aioquic.asyncio import QuicConnectionProtocol, serve
@@ -14,11 +14,11 @@ from aioquic.quic.configuration import QuicConfiguration
 from aioquic.quic.connection import stream_is_unidirectional
 from aioquic.quic.events import ProtocolNegotiated, StreamReset, QuicEvent
 
-from new.server.server_request import ServerRequest
-from new.server.responses import Response, JSONResponse, TextResponse
-from new.server.request_handler import RequestHandler
-from new.common.config import AllowedMethods, ALLOWED_METHODS
-from new.server.server_connection import ServerConnection
+from ezh3.server.server_request import ServerRequest
+from ezh3.server.responses import Response, JSONResponse, TextResponse
+from ezh3.server.request_handler import RequestHandler
+from ezh3.common.config import AllowedMethods, ALLOWED_METHODS
+from ezh3.server.server_connection import ServerConnection
 
 logging.basicConfig(
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
@@ -75,10 +75,10 @@ class Server:
 
         if self.enable_tls:
             if not self.custom_cert_file_loc:
-                raise ValueError("Parameter that holds custom certificate file location - custom_cert_file_loc not provided ")
+                raise ValueError("Parameter that holds custom certificate file location - custom_cert_file_loc not provided")
 
             if not self.custom_cert_key_file_loc:
-                raise ValueError("Parameter that holds custom certificate key file location - custom_cert_key_file_loc not provided ")
+                raise ValueError("Parameter that holds custom certificate key file location - custom_cert_key_file_loc not provided")
 
             self.cert_file_loc = self.custom_cert_file_loc
             self.cert_key_file_loc = self.custom_cert_key_file_loc

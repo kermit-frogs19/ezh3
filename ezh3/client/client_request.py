@@ -4,8 +4,8 @@ from typing import Literal
 import json as json_lib
 import aioquic
 
-from new.client.url import URL
-from new.common.config import DEFAULT_TIMEOUT
+from ezh3.client.url import URL
+from ezh3.common.config import DEFAULT_TIMEOUT
 
 
 @dataclass

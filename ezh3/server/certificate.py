@@ -6,8 +6,7 @@ from cryptography.hazmat.primitives.serialization import Encoding, PrivateFormat
 from datetime import datetime, timedelta, UTC
 from pathlib import Path
 from cryptography.hazmat.backends import default_backend
-from ipaddress import IPv4Address  # Import IPv4Address
-
+from ipaddress import IPv4Address
 
 
 def generate_self_signed_cert(certfile="cert.pem", keyfile="key.pem"):

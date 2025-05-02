@@ -5,12 +5,12 @@
 
 import asyncio
 
-from new.server.server import Server, ServerRequest
+from ezh3.server.server import Server, ServerRequest
 
 
 app = Server(
-    enable_tls=True,
-    cert_type="CUSTOM",
+    enable_tls=False,
+    cert_type="SELF_SIGNED",
     custom_cert_file_loc="/app/cert.pem",
     custom_cert_key_file_loc="/app/key.pem"
 )
@@ -34,4 +34,4 @@ async def main1():
 if __name__ == '__main__':
     asyncio.run(main1())
 
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
+
