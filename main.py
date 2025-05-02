@@ -4,12 +4,13 @@
 # Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
 
 import asyncio
-from server.test import Server, ServerRequest
+
+from new.server.server import Server, ServerRequest
 
 
 app = Server(
-    enable_tls=True,
-    cert_type="CUSTOM",
+    enable_tls=False,
+    cert_type="SELF_SIGNED",
     custom_cert_file_loc="/app/cert.pem",
     custom_cert_key_file_loc="/app/key.pem"
 )

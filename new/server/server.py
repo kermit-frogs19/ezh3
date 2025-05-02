@@ -4,7 +4,7 @@ from collections import defaultdict
 from typing import Dict, Optional, Callable
 import ssl
 from pathlib import Path
-from server.certificate import generate_self_signed_cert
+from new.server.certificate import generate_self_signed_cert
 from typing import Literal
 
 from aioquic.asyncio import QuicConnectionProtocol, serve
@@ -14,14 +14,11 @@ from aioquic.quic.configuration import QuicConfiguration
 from aioquic.quic.connection import stream_is_unidirectional
 from aioquic.quic.events import ProtocolNegotiated, StreamReset, QuicEvent
 
-from ezh3.client.server_request import ServerRequest
-from ezh3.client.response import Response, JSONResponse, TextResponse
-from ezh3.client.request_handler import RequestHandler
-from ezh3.client.config import AllowedMethods, ALLOWED_METHODS
-
-
-BIND_ADDRESS = "0.0.0.0"
-BIND_PORT = 443
+from new.server.server_request import ServerRequest
+from new.server.responses import Response, JSONResponse, TextResponse
+from new.server.request_handler import RequestHandler
+from new.common.config import AllowedMethods, ALLOWED_METHODS
+from new.server.server_connection import ServerConnection
 
 logging.basicConfig(
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
@@ -33,40 +30,6 @@ logger.setLevel(logging.DEBUG)
 console_handler = logging.StreamHandler()
 console_handler.setLevel(logging.DEBUG)
 logger.addHandler(console_handler)
-
-
-
-
-class CounterHandler:
-
-    def __init__(self, session_id, http: H3Connection) -> None:
-        self._session_id = session_id
-        self._http = http
-        self._counters = defaultdict(int)
-
-    def h3_event_received(self, event: H3Event) -> None:
-        if isinstance(event, DatagramReceived):
-            payload = str(len(event.data)).encode('ascii')
-            self._http.send_datagram(self._session_id, payload)
-
-        if isinstance(event, WebTransportStreamDataReceived):
-            self._counters[event.stream_id] += len(event.data)
-            if event.stream_ended:
-                if stream_is_unidirectional(event.stream_id):
-                    response_id = self._http.create_webtransport_stream(
-                        self._session_id, is_unidirectional=True)
-                else:
-                    response_id = event.stream_id
-                payload = str(self._counters[event.stream_id]).encode('ascii')
-                self._http._quic.send_stream_data(
-                    response_id, payload, end_stream=True)
-                self.stream_closed(event.stream_id)
-
-    def stream_closed(self, stream_id: int) -> None:
-        try:
-            del self._counters[stream_id]
-        except KeyError:
-            pass
 
 
 class Server:
@@ -204,87 +167,10 @@ class Server:
 
         print(f"QUIC HTTP/3 Server running on {self.host}:{self.port}")
         try:
-            logger.info("Listening on https://{}:{}".format(BIND_ADDRESS, BIND_PORT))
+            logger.info("Listening on https://{}:{}".format(self.host, self.port))
             await asyncio.Future()  # ✅ Blocks the event loop forever
         except (asyncio.CancelledError, KeyboardInterrupt):
             self.shutdown()
             print("[INFO] QUIC server shutting down...")
 
 
-class ServerConnection(QuicConnectionProtocol):
-
-    def __init__(self, server: Server, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-        self.server = server
-        self._http: Optional[H3Connection] = None
-        self._requests: dict[int, ServerRequest] = {}  # ✅ Stores request data (headers + body)
-
-    def quic_event_received(self, event: QuicEvent) -> None:
-        if isinstance(event, ProtocolNegotiated):
-            if event.alpn_protocol == "h3":
-                self._http = H3Connection(self._quic, enable_webtransport=True)
-
-        if self._http is not None:
-            for h3_event in self._http.handle_event(event):
-                asyncio.create_task(self._h3_event_received(h3_event))
-
-    async def _h3_event_received(self, event: H3Event) -> None:
-        if isinstance(event, HeadersReceived):
-            self._requests[event.stream_id] = ServerRequest(
-                raw_headers=event.headers,
-            )
-
-        elif isinstance(event, DataReceived):
-            if event.stream_id in self._requests:
-                self._requests[event.stream_id].body += event.data
-
-        elif isinstance(event, StreamReset):
-            if event.stream_id in self._requests:
-                del self._requests[event.stream_id]
-
-        if event.stream_ended:
-            await self._process_request(event.stream_id)
-
-    async def _process_request(self, stream_id: int) -> None:
-        """Processes a fully received HTTP request."""
-        if stream_id not in self._requests:
-            return
-
-        request = self._requests.pop(stream_id)  # ✅ Remove request from storage
-        response = await self.server.handle_request(request)
-
-        self.send_response(stream_id=stream_id, response=response)
-
-    def send_response(self, stream_id: int, response: Response) -> None:
-        body = response.render_body()
-        headers = response.render_headers()
-
-        self._http.send_headers(stream_id=stream_id, headers=headers, end_stream=False)
-        self._http.send_data(stream_id=stream_id, data=body, end_stream=True)
-
-
-# app = Server(
-#     enable_tls=True,
-#     cert_type="CUSTOM",
-#     custom_cert_file_loc="/etc/letsencrypt/live/vadim-seliukov-quic-server.com/fullchain.pem",
-#     custom_cert_key_file_loc="/etc/letsencrypt/live/vadim-seliukov-quic-server.com/privkey.pem"
-# )
-#
-#
-# @app.get("/")
-# async def home():
-#     return {"message": "Welcome to QUIC Server"}
-#
-#
-# @app.post("/echo")
-# async def echo(request: ServerRequest):
-#     data = request.json()
-#     return data
-#
-#
-# async def main1():
-#     await app.run(port=BIND_PORT, host=BIND_ADDRESS)
-#
-#
-# if __name__ == '__main__':
-#     asyncio.run(main1())
