@@ -62,7 +62,7 @@ class ClientRequest:
             content_type = "application/json"
 
         headers.append((b"content-type", content_type.encode(self._header_encoding)))
-        headers.extend([(k.lower(self._header_encoding).encode(), v.encode()) for (k, v) in self.headers.items() if k.lower() not in {"content-type", "content-length"}])
+        headers.extend([(k.lower().encode(self._header_encoding), v.encode()) for (k, v) in self.headers.items() if k.lower() not in {"content-type", "content-length"}])
 
         return headers
 
