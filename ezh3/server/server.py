@@ -16,7 +16,7 @@ from aioquic.quic.events import ProtocolNegotiated, StreamReset, QuicEvent
 
 from ezh3.server.server_request import ServerRequest
 from ezh3.server.responses import Response, JSONResponse, TextResponse
-from ezh3.server.request_handler import RequestHandler
+from ezh3.server.route_handler import RouteHandler
 from ezh3.common.config import AllowedMethods, ALLOWED_METHODS
 from ezh3.server.server_connection import ServerConnection
 
@@ -52,7 +52,7 @@ class Server:
         self.cert_type = cert_type
 
         # Route registry, a key value pair of a tuple(path, method) to a RequestHandler instance
-        self.routes: dict[tuple[str, str], RequestHandler] = {}
+        self.routes: dict[tuple[str, str], RouteHandler] = {}
         self.cert_file_loc: str | None = None
         self.cert_key_file_loc: str | None = None
         self.configuration: QuicConfiguration | None = None
@@ -91,7 +91,7 @@ class Server:
     def route(self, path: str, method: str = "GET") -> Callable:
         """Decorator for registering a route"""
         def decorator(func):
-            self.routes[path, method] = RequestHandler(method=method, function=func)
+            self.routes[path, method] = RouteHandler(method=method, function=func)
             return func
         return decorator
 

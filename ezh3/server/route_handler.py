@@ -5,7 +5,7 @@ from types import MappingProxyType
 
 
 @dataclass
-class RequestHandler:
+class RouteHandler:
     method: str = field(default="")
     function: Callable = field(default=lambda: None)
     params: list = field(default_factory=list)
