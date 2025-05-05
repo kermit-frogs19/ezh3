@@ -45,5 +45,8 @@ class ServerRequest:
 
         self.headers = headers
 
+    def _process_body(self) -> None:
+        pass
+
 
 
