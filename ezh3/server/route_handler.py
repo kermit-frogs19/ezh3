@@ -8,7 +8,6 @@ from types import MappingProxyType
 class RouteHandler:
     method: str = field(default="")
     function: Callable = field(default=lambda: None)
-    params: list = field(default_factory=list)
     parameters: MappingProxyType = field(default=None)
 
     def __post_init__(self):
