@@ -29,7 +29,7 @@ COPY . .
 
 
 # Expose UDP port used by QUIC
-EXPOSE 443/udp
+EXPOSE 8000/udp
 
 # Run your QUIC server
 CMD ["python", "main.py"]
