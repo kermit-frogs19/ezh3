@@ -1,6 +1,4 @@
 from typing import Optional, Dict
-
-from ezh3.client.url import URL
 import json as json_lib
 
 
@@ -8,7 +6,6 @@ class ServerRequest:
     def __init__(
         self,
         method: str = None,
-        url: URL = None,
         body: bytes = b"",
         path: str = None,
         raw_headers: list = None,
@@ -17,7 +14,6 @@ class ServerRequest:
 
     ) -> None:
         self.body = body
-        self.url = url
         self.headers = headers
         self.method = method
         self.path = path
