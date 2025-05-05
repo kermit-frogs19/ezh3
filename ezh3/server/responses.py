@@ -8,7 +8,6 @@ class Response:
     status_code: int = field(default=200)
     content: Any = field(default=None)
     headers: dict = field(default_factory=dict)
-    url: str = field(default="")
     content_type: str = field(default="application/octet-stream")
     charset: str = field(default="utf-8")
     _content_length: int = field(default=0)
