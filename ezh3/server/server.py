@@ -8,6 +8,7 @@ from ezh3.server.certificate import generate_self_signed_cert
 from typing import Literal
 
 from aioquic.asyncio import QuicConnectionProtocol, serve
+from aioquic.asyncio.server import QuicServer
 from aioquic.h3.connection import H3_ALPN, H3Connection
 from aioquic.h3.events import H3Event, HeadersReceived, WebTransportStreamDataReceived, DatagramReceived, DataReceived
 from aioquic.quic.configuration import QuicConfiguration
@@ -56,8 +57,9 @@ class Server:
         self.cert_file_loc: str | None = None
         self.cert_key_file_loc: str | None = None
         self.configuration: QuicConfiguration | None = None
-        self.server: ServerConnection | None = None
+        self.server: QuicServer | None = None
         self._is_running: bool = False
+        self.connections: set[ServerConnection] = set()
 
     @property
     def is_running(self) -> bool:
@@ -147,6 +149,11 @@ class Server:
     def shutdown(self):
         if not self.is_running:
             return
+
+        for connection in list(self.connections):
+            connection.cleanup()
+
+        self.connections.clear()
         self.server.close()
         self._is_running = False
 
@@ -161,7 +168,7 @@ class Server:
             host=self.host,
             port=self.port,
             configuration=self.configuration,
-            create_protocol=lambda *args, **kwargs: ServerConnection(self, *args, **kwargs),
+            create_protocol=lambda *args, **kwargs: self._track_connections(ServerConnection(self, *args, **kwargs)),
         )
         self._is_running = True
 
@@ -172,5 +179,10 @@ class Server:
         except (asyncio.CancelledError, KeyboardInterrupt):
             self.shutdown()
             print("[INFO] QUIC server shutting down...")
+
+    def _track_connections(self, connection: ServerConnection) -> ServerConnection:
+        self.connections.add(connection)
+        connection.on_close = lambda: self.connections.discard(connection)
+        return connection
 
 

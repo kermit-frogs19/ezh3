@@ -1,11 +1,11 @@
 import asyncio
-from typing import Optional
+from typing import Optional, Callable
 
 from aioquic.asyncio import QuicConnectionProtocol
 from aioquic.h3.connection import H3Connection
 from aioquic.h3.events import H3Event, HeadersReceived, DataReceived
 
-from aioquic.quic.events import ProtocolNegotiated, StreamReset, QuicEvent
+from aioquic.quic.events import ProtocolNegotiated, StreamReset, QuicEvent, ConnectionTerminated
 
 from ezh3.server.server_request import ServerRequest
 from ezh3.server.responses import *
@@ -18,11 +18,16 @@ class ServerConnection(QuicConnectionProtocol):
         self.server = server
         self._http: Optional[H3Connection] = None
         self._requests: dict[int, ServerRequest] = {}  # ✅ Stores request data (headers + body)
+        self.on_close: Callable = lambda: None
 
     def quic_event_received(self, event: QuicEvent) -> None:
         if isinstance(event, ProtocolNegotiated):
             if event.alpn_protocol == "h3":
                 self._http = H3Connection(self._quic, enable_webtransport=True)
+
+        elif isinstance(event, ConnectionTerminated):
+            # Cleanup everything
+            self.cleanup()
 
         if self._http is not None:
             for h3_event in self._http.handle_event(event):
@@ -61,3 +66,7 @@ class ServerConnection(QuicConnectionProtocol):
 
         self._http.send_headers(stream_id=stream_id, headers=headers, end_stream=False)
         self._http.send_data(stream_id=stream_id, data=body, end_stream=True)
+
+    def cleanup(self) -> None:
+        self._requests.clear()
+        self.on_close()
