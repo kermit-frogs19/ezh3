@@ -12,6 +12,7 @@ from typing import BinaryIO, Callable, Deque, Dict, List, Optional, Union, cast,
 from urllib.parse import urlparse
 from pathlib import Path
 import certifi
+from contextlib import suppress
 
 import aioquic
 from aioquic.quic.connection import QuicConnection, QuicTokenHandler
@@ -231,66 +232,71 @@ class Client:
         return websocket
 
     async def connect(
-            self, port: int,
+            self,
+            port: int,
             host: str,
             wait_connected: bool = True,
             local_port: int = 0
     ) -> ClientConnection:
         protocol = next((con for con in self.connections if con.port == port and con.host == host), None)
         if protocol:
-            if not protocol.is_running:
-                self.connections.remove(protocol)
-            else:
+            if protocol.is_running:
                 return protocol
+            self.connections.remove(protocol)
 
         # prepare configuration
         config = QuicConfiguration(is_client=True, alpn_protocols=H3_ALPN, max_datagram_frame_size=65536)
         config.server_name = host
-
-        if not self.use_tls:
-            config.verify_mode = ssl.CERT_NONE
-        else:
-            config.verify_mode = ssl.CERT_REQUIRED
+        config.verify_mode = ssl.CERT_REQUIRED if self.use_tls else ssl.CERT_NONE
+        if self.use_tls:
             config.load_verify_locations(cafile=certifi.where())
 
-        loop = asyncio.get_event_loop()
-        local_host = "::"
+        loop = asyncio.get_running_loop()
+        addr = await self._resolve_address(host, port, loop)
+        sock = self._setup_dualstack_socket(local_port)
 
-        # lookup remote address
-        infos = await loop.getaddrinfo(host, port, type=socket.SOCK_DGRAM)
-        addr = infos[0][4]
-        if len(addr) == 2:
-            addr = ("::ffff:" + addr[0], addr[1], 0, 0)
-
-        connection_ = QuicConnection(configuration=config, session_ticket_handler=self._save_session_ticket)
-
-        # explicitly enable IPv4/IPv6 dual stack
-        sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
-        completed = False
-        try:
-            sock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
-            sock.bind((local_host, local_port, 0, 0))
-            completed = True
-        finally:
-            if not completed:
-                sock.close()
         # connect
-        transport, protocol = await loop.create_datagram_endpoint(lambda: ClientConnection(connection_), sock=sock)
-        protocol = cast(ClientConnection, protocol)
+        transport, protocol = await loop.create_datagram_endpoint(lambda: ClientConnection(
+                QuicConnection(configuration=config, session_ticket_handler=self._save_session_ticket)), sock=sock)
 
         try:
             protocol.connect(addr, transmit=wait_connected)
             if wait_connected:
                 await protocol.wait_connected()
+
             protocol.transport = transport
             protocol.port = port
             protocol.host = host
             self.connections.add(protocol)
+
             return protocol
-        except:
+
+        except Exception as e:
             protocol.close()
             await protocol.wait_closed()
-            transport.close()
+            with suppress(Exception):
+                transport.close()
+            raise ConnectionError(f"Failed to connect to {host}:{port} — {e.__class__.__name__}. {str(e)}") from e
+
+    async def _resolve_address(self, host: str, port: int, loop) -> tuple:
+        # lookup remote address
+        infos = await loop.getaddrinfo(host, port, type=socket.SOCK_DGRAM)
+        addr = infos[0][4]
+        if len(addr) == 2:
+            # Map IPv4 to IPv6
+            addr = ("::ffff:" + addr[0], addr[1], 0, 0)
+        return addr
+
+    def _setup_dualstack_socket(self, local_port: int = 0) -> socket.socket:
+        # explicitly enable IPv4/IPv6 dual stack
+        sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
+        try:
+            sock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
+            sock.bind(("::", local_port, 0, 0))
+            return sock
+        except Exception:
+            sock.close()
+            raise
 
     async def _request(self, request: ClientRequest) -> ClientResponse:
         # Resolve the conflict between class base URL and request URL
@@ -339,7 +345,7 @@ class Client:
 
 
 async def main1():
-    url = "https://vadim-seliukov-quic-server.com"
+    url = "https://vadim-seliukov-quic-server.com:8000"
     data = {"voice": "Hellooo"}
     client = Client(url, use_tls=True)
     response = None
@@ -354,10 +360,6 @@ async def main1():
         response = await client.post("/echo", json=data, timeout=None)
         response = await client.post("/echo", json=data, timeout=None)
         response = await client.post("/echo", json=data, timeout=None)
-
-
-
-
 
         response.raise_for_status()
     except HTTPTimeoutError as e:
