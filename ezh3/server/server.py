@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from collections import defaultdict
-from typing import Dict, Optional, Callable
+from typing import Dict, Optional, Callable, Type
 import ssl
 from pathlib import Path
 from ezh3.server.certificate import generate_self_signed_cert
@@ -43,7 +43,8 @@ class Server:
             enable_tls: bool = False,
             custom_cert_file_loc: str = None,
             custom_cert_key_file_loc: str = None,
-            cert_type: Literal["SELF_SIGNED", "CUSTOM", None] = "SELF_SIGNED"
+            cert_type: Literal["SELF_SIGNED", "CUSTOM", None] = "SELF_SIGNED",
+            connection_class: Type[ServerConnection] = ServerConnection
     ):
         self.title = title
         self.host = host
@@ -52,6 +53,7 @@ class Server:
         self.custom_cert_file_loc = custom_cert_file_loc
         self.custom_cert_key_file_loc = custom_cert_key_file_loc
         self.cert_type = cert_type
+        self.connection_class = connection_class
 
         # Route registry, a key value pair of a tuple(path, method) to a RequestHandler instance
         self.routes: dict[tuple[str, str], RouteHandler] = {}
@@ -60,9 +62,6 @@ class Server:
         self.configuration: QuicConfiguration | None = None
         self.server: QuicServer | None = None
         self._is_running: bool = False
-
-        connection_class = ServerConnection
-        self.connection_class = connection_class
         self.connections: set[connection_class] = set()
 
     @property
