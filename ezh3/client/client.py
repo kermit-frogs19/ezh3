@@ -62,7 +62,7 @@ class Client:
     async def __aenter__(self):
         self._is_running = True
         if self.raw_base_url:
-            await self._connect(self.base_url.port, self.base_url.host)
+            await self.connect(self.base_url.port, self.base_url.host)
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
@@ -207,7 +207,7 @@ class Client:
         """
         request = ClientRequest(method="CONNECT", url=url)
 
-        connection = await self._connect(request.url.port, request.url.host)
+        connection = await self.connect(request.url.port, request.url.host)
         stream_id = connection._quic.get_next_available_stream_id()
         websocket = ClientWebSocket(http=connection._http, stream_id=stream_id, transmit=connection.transmit)
         connection._websockets[stream_id] = websocket
@@ -230,14 +230,7 @@ class Client:
 
         return websocket
 
-    def _save_session_ticket(self, ticket: SessionTicket) -> None:
-        """
-        Callback which is invoked by the TLS engine when a new session ticket
-        is received.
-        """
-        print(f"New session ticket received: {ticket}")
-
-    async def _connect(
+    async def connect(
             self, port: int,
             host: str,
             wait_connected: bool = True,
@@ -303,7 +296,7 @@ class Client:
         # Resolve the conflict between class base URL and request URL
         request.url = self.base_url.resolve(request.url)
 
-        connection = await self._connect(request.url.port, request.url.host)
+        connection = await self.connect(request.url.port, request.url.host)
         self._is_running = True
 
         timeout = request.timeout if not isinstance(request.timeout, _DEFAULT_TIMEOUT) else self.timeout
@@ -336,6 +329,13 @@ class Client:
                 body.extend(event.data)
 
         return ClientResponse(raw_headers=raw_headers, request=request, body=bytes(body))
+
+    def _save_session_ticket(self, ticket: SessionTicket) -> None:
+        """
+        Callback which is invoked by the TLS engine when a new session ticket
+        is received.
+        """
+        print(f"New session ticket received: {ticket}")
 
 
 async def main1():
