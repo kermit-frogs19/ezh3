@@ -20,6 +20,7 @@ from ezh3.server.responses import Response, JSONResponse, TextResponse
 from ezh3.server.route_handler import RouteHandler
 from ezh3.common.config import AllowedMethods, ALLOWED_METHODS
 from ezh3.server.server_connection import ServerConnection
+from ezh3.common.config import DEFAULT_HOST, DEFAULT_PORT, DefaultHost, DefaultPort
 
 logging.basicConfig(
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
@@ -37,8 +38,8 @@ class Server:
     def __init__(
             self,
             title: str = "",
-            host: str = "127.0.0.1",
-            port: int = 443,
+            host: str = DEFAULT_HOST,   # 0.0.0.0
+            port: int = DEFAULT_PORT,   # 443
             enable_tls: bool = False,
             custom_cert_file_loc: str = None,
             custom_cert_key_file_loc: str = None,
@@ -59,7 +60,10 @@ class Server:
         self.configuration: QuicConfiguration | None = None
         self.server: QuicServer | None = None
         self._is_running: bool = False
-        self.connections: set[ServerConnection] = set()
+
+        connection_class = ServerConnection
+        self.connection_class = connection_class
+        self.connections: set[connection_class] = set()
 
     @property
     def is_running(self) -> bool:
@@ -157,10 +161,10 @@ class Server:
         self.server.close()
         self._is_running = False
 
-    async def run(self, host: str = "0.0.0.0", port: int = 443) -> None:
+    async def run(self, host: str = DEFAULT_HOST, port: int = DEFAULT_PORT) -> None:
         """Starts QUIC server"""
-        self.host = host  # Force override
-        self.port = port
+        self.host = host if not isinstance(host, DefaultHost) else self.host  # Force override
+        self.port = port if not isinstance(port, DefaultPort) else self.port  # Force override
 
         self._configure()
 
@@ -168,7 +172,7 @@ class Server:
             host=self.host,
             port=self.port,
             configuration=self.configuration,
-            create_protocol=lambda *args, **kwargs: self._track_connections(ServerConnection(self, *args, **kwargs)),
+            create_protocol=lambda *args, **kwargs: self._track_connections(self.connection_class(self, *args, **kwargs)),
         )
         self._is_running = True
 
