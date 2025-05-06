@@ -19,6 +19,9 @@ class URL:
 
     # Resolves the conflict between base URL provided as class param and URL provided in the request method
     def resolve(self, other: "URL") -> "URL":
+        if not other.raw_url and not self.raw_url:
+            raise ValueError(f"URL is not provided")
+
         if other.raw_url.startswith(self.raw_url) or not other.only_path:
             return other
         else:
