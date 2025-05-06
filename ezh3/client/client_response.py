@@ -31,7 +31,7 @@ class ClientResponse:
         if not self.method:
             self.method = self.request.method
 
-        self.reason = self.analyze_status_code()
+        self.analyze_status_code()
 
     @property
     def text(self):
@@ -92,41 +92,47 @@ class ClientResponse:
                 response=self
             )
 
-    def analyze_status_code(self) -> str:
+    def analyze_status_code(self) -> None:
         if self.reason is not None:
-            return self.reason
+            return
+
+        self.reason = {
+            200: "success",
+            201: "created",
+            204: "no content",
+            301: "moved permanently",
+            302: "found",
+            307: "temporary redirect",
+            308: "permanent redirect",
+            400: "bad request",
+            401: "unauthorized",
+            403: "forbidden",
+            404: "not found",
+            405: "method not allowed",
+            408: "request timeout",
+            409: "conflict",
+            422: "unprocessable content",
+            429: "too many requests",
+            500: "internal server error",
+            501: "not implemented",
+            502: "bad gateway",
+            503: "service unavailable",
+            505: "http version not supported",
+        }.get(self.status_code)
+
+        if self.reason is not None:
+            return
 
         if 200 <= self.status_code < 300:
-            reason = "success"
+            self.reason = "success"
         elif 300 <= self.status_code < 400:
-            reason = "redirect"
-        elif self.status_code == 401:
-            reason = "unauthorized"
-        elif self.reason == 403:
-            reason = "forbidden"
-        elif self.status_code == 404:
-            reason = "not found"
-        elif self.status_code == 405:
-            reason = "method not allowed"
-        elif self.status_code == 429:
-            reason = "too many requests"
-        elif self.status_code == 422:
-            reason = "unprocessable content"
+            self.reason = "redirect"
         elif 400 <= self.status_code < 500:
-            reason = "bad request"
-        elif self.status_code == 500:
-            reason = "internal server error"
-        elif self.status_code == 502:
-            reason = "bad gateway"
-        elif self.status_code == 503:
-            reason = "service unavailable"
-        elif self.status_code == 505:
-            reason = "http version not supported"
+            self.reason = "bad request"
         elif 500 <= self.status_code < 600:
-            reason = "server error"
+            self.reason = "server error"
         else:
-            reason = "unknown"
-        return reason
+            self.reason = "unknown"
 
 
 
