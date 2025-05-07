@@ -45,7 +45,6 @@ class Server:
             enable_tls: bool = False,
             custom_cert_file_loc: str = None,
             custom_cert_key_file_loc: str = None,
-            cert_type: Literal["SELF_SIGNED", "CUSTOM", None] = "SELF_SIGNED",
             connection_class: Type[ServerConnection] = ServerConnection,
             enable_ipv6: bool = False,
     ):
@@ -55,7 +54,7 @@ class Server:
         self.enable_tls = enable_tls
         self.custom_cert_file_loc = custom_cert_file_loc
         self.custom_cert_key_file_loc = custom_cert_key_file_loc
-        self.cert_type = cert_type
+        self.cert_type = "CUSTOM" if self.enable_tls else "SELF_SIGNED"
         self.connection_class = connection_class
         self.enable_ipv6 = enable_ipv6
 
