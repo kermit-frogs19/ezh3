@@ -3,8 +3,8 @@ from urllib.parse import urlparse
 
 class URL:
     def __init__(self, url: str) -> None:
-        self.raw_url = url
-        parsed = urlparse(url)
+        self.raw_url = url if url else ""
+        parsed = urlparse(self.raw_url)
         self.scheme = "https" if not parsed.scheme else parsed.scheme
         assert self.scheme in {"https", "wss"}, "Only https:// or wss:// URLs are supported."
 
