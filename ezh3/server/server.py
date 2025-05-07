@@ -24,16 +24,16 @@ from ezh3.common.config import AllowedMethods, ALLOWED_METHODS
 from ezh3.server.server_connection import ServerConnection
 from ezh3.common.config import DEFAULT_HOST, DEFAULT_PORT, DefaultHost, DefaultPort, DEFAULT_HOST_IPV6
 
-logging.basicConfig(
-        format="%(asctime)s %(levelname)s %(name)s %(message)s",
-        level=logging.DEBUG,
-    )
-
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-console_handler = logging.StreamHandler()
-console_handler.setLevel(logging.DEBUG)
-logger.addHandler(console_handler)
+# logging.basicConfig(
+#         format="%(asctime)s %(levelname)s %(name)s %(message)s",
+#         level=logging.DEBUG,
+#     )
+#
+# logger = logging.getLogger(__name__)
+# logger.setLevel(logging.DEBUG)
+# console_handler = logging.StreamHandler()
+# console_handler.setLevel(logging.DEBUG)
+# logger.addHandler(console_handler)
 
 
 class Server:
@@ -206,7 +206,7 @@ class Server:
 
         print(f"QUIC HTTP/3 Server running on {self.host}:{self.port}")
         try:
-            logger.info("Listening on https://{}:{}".format(self.host, self.port))
+            # logger.info("Listening on https://{}:{}".format(self.host, self.port))
             await asyncio.Future()  # ✅ Blocks the event loop forever
         except (asyncio.CancelledError, KeyboardInterrupt):
             self.shutdown()

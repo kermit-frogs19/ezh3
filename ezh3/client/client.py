@@ -34,13 +34,13 @@ from ezh3.client.exceptions import *
 from ezh3.common.config import _DEFAULT_TIMEOUT, DEFAULT_TIMEOUT, USER_AGENT
 
 
-logging.basicConfig(
-    format="%(asctime)s %(levelname)s %(name)s %(message)s",
-    level=logging.DEBUG,
-)
-
-
-logger = logging.getLogger("client")
+# logging.basicConfig(
+#     format="%(asctime)s %(levelname)s %(name)s %(message)s",
+#     level=logging.DEBUG,
+# )
+#
+#
+# logger = logging.getLogger("client")
 
 
 class Client:
