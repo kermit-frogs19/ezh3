@@ -173,7 +173,7 @@ class Server:
         """Starts QUIC server"""
         self.host = host if not isinstance(host, DefaultHost) else self.host  # Force override
         self.port = port if not isinstance(port, DefaultPort) else self.port  # Force override
-        self.enable_ipv6 = enable_ipv6
+        self.enable_ipv6 = enable_ipv6 if enable_ipv6 else self.enable_ipv6
 
         self._configure()
 
