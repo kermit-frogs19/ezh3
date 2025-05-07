@@ -6,6 +6,8 @@ import ssl
 from pathlib import Path
 from ezh3.server.certificate import generate_self_signed_cert
 from typing import Literal
+import socket
+
 
 from aioquic.asyncio import QuicConnectionProtocol, serve
 from aioquic.asyncio.server import QuicServer
@@ -20,7 +22,7 @@ from ezh3.server.responses import Response, JSONResponse, TextResponse
 from ezh3.server.route_handler import RouteHandler
 from ezh3.common.config import AllowedMethods, ALLOWED_METHODS
 from ezh3.server.server_connection import ServerConnection
-from ezh3.common.config import DEFAULT_HOST, DEFAULT_PORT, DefaultHost, DefaultPort
+from ezh3.common.config import DEFAULT_HOST, DEFAULT_PORT, DefaultHost, DefaultPort, DEFAULT_HOST_IPV6
 
 logging.basicConfig(
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
@@ -44,7 +46,8 @@ class Server:
             custom_cert_file_loc: str = None,
             custom_cert_key_file_loc: str = None,
             cert_type: Literal["SELF_SIGNED", "CUSTOM", None] = "SELF_SIGNED",
-            connection_class: Type[ServerConnection] = ServerConnection
+            connection_class: Type[ServerConnection] = ServerConnection,
+            enable_ipv6: bool = False,
     ):
         self.title = title
         self.host = host
@@ -54,6 +57,7 @@ class Server:
         self.custom_cert_key_file_loc = custom_cert_key_file_loc
         self.cert_type = cert_type
         self.connection_class = connection_class
+        self.enable_ipv6 = enable_ipv6
 
         # Route registry, a key value pair of a tuple(path, method) to a RequestHandler instance
         self.routes: dict[tuple[str, str], RouteHandler] = {}
@@ -160,18 +164,44 @@ class Server:
         self.server.close()
         self._is_running = False
 
-    async def run(self, host: str = DEFAULT_HOST, port: int = DEFAULT_PORT) -> None:
+    async def run(
+            self,
+            host: str = DEFAULT_HOST,
+            port: int = DEFAULT_PORT,
+            enable_ipv6: bool = False
+    ) -> None:
         """Starts QUIC server"""
         self.host = host if not isinstance(host, DefaultHost) else self.host  # Force override
         self.port = port if not isinstance(port, DefaultPort) else self.port  # Force override
+        self.enable_ipv6 = enable_ipv6
 
         self._configure()
 
-        self.server = await serve(
-            host=self.host,
-            port=self.port,
-            configuration=self.configuration,
-            create_protocol=lambda *args, **kwargs: self._track_connections(self.connection_class(self, *args, **kwargs)),
+        loop = asyncio.get_running_loop()
+
+        kwargs = {}
+        if not self.enable_ipv6:
+            kwargs["local_addr"] = (self.host, self.port)
+        else:
+            if isinstance(self.host, DefaultHost) or self.host == "0.0.0.0":
+                self.host = DEFAULT_HOST_IPV6
+
+            # Create dual-stack socket
+            sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
+            sock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)  # ✅ allow dual stack
+            sock.bind((self.host, self.port, 0, 0))  # bind to :: + port
+            kwargs["sock"] = sock
+
+        _, self.server = await loop.create_datagram_endpoint(
+            lambda: QuicServer(
+                configuration=self.configuration,
+                create_protocol=lambda *args, **kwargs: self._track_connections(self.connection_class(self, *args, **kwargs)),
+                session_ticket_fetcher=None,
+                session_ticket_handler=None,
+                retry=False,
+                stream_handler=None,
+            ),
+            **kwargs
         )
         self._is_running = True
 
