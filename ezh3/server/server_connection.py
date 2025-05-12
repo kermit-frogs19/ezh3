@@ -67,6 +67,8 @@ class ServerConnection(QuicConnectionProtocol):
         self._http.send_headers(stream_id=stream_id, headers=headers, end_stream=False)
         self._http.send_data(stream_id=stream_id, data=body, end_stream=True)
 
+        self.transmit()
+
     def cleanup(self) -> None:
         self._requests.clear()
         self.on_close()
