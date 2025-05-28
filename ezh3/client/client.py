@@ -320,12 +320,13 @@ class Client:
 
         try:
             events = await asyncio.wait_for(asyncio.shield(waiter), timeout=timeout)
+            connection.cleanup_stream(stream_id=stream_id)
         except asyncio.TimeoutError:
+            connection.cleanup_stream(stream_id=stream_id)
             raise HTTPTimeoutError(f"Request timed out after {timeout} seconds")
         except BaseException as e:
-            raise HTTPError(f"Error when during request - {e.__class__.__name__}. {str(e)}")
-        finally:
             connection.cleanup_stream(stream_id=stream_id)
+            raise HTTPError(f"Error when during request - {e.__class__.__name__}. {str(e)}")
 
         return self._process_response_events(request=request, events=events)
 
