@@ -8,7 +8,7 @@ import ssl
 import time
 import socket
 from collections import deque
-from typing import BinaryIO, Callable, Deque, Dict, List, Optional, Union, cast, Literal
+from typing import BinaryIO, Callable, Deque, Dict, List, Optional, Union, cast, Literal, Type
 from urllib.parse import urlparse
 from pathlib import Path
 import certifi
@@ -49,15 +49,17 @@ class Client:
             base_url: str = "",
             headers: dict = None,
             use_tls: bool = True,
-            timeout: int | float | None = DEFAULT_TIMEOUT
+            timeout: int | float | None = DEFAULT_TIMEOUT,
+            connection_class: Type[ClientConnection] = ClientConnection
     ):
         self.raw_base_url = base_url
         self.base_url = URL(base_url)
         self.headers = headers or {}
         self.use_tls = use_tls
         self.timeout = timeout
+        self.connection_class = connection_class
 
-        self.connections: set[ClientConnection] = set()
+        self.connections: set[connection_class] = set()
         self._is_running: bool = True
 
     async def __aenter__(self):
@@ -256,7 +258,7 @@ class Client:
         sock = self._setup_dualstack_socket(local_port)
 
         # connect
-        transport, protocol = await loop.create_datagram_endpoint(lambda: ClientConnection(
+        transport, protocol = await loop.create_datagram_endpoint(lambda: self.connection_class(
                 QuicConnection(configuration=config, session_ticket_handler=self._save_session_ticket)), sock=sock)
 
         try:
