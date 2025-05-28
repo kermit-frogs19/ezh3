@@ -2,7 +2,7 @@ import asyncio
 from typing import Optional, Callable
 
 from aioquic.asyncio import QuicConnectionProtocol
-from aioquic.h3.connection import H3Connection
+from aioquic.h3.connection import H3Connection, ErrorCode
 from aioquic.h3.events import H3Event, HeadersReceived, DataReceived
 
 from aioquic.quic.events import ProtocolNegotiated, StreamReset, QuicEvent, ConnectionTerminated
@@ -67,6 +67,11 @@ class ServerConnection(QuicConnectionProtocol):
         self._http.send_headers(stream_id=stream_id, headers=headers, end_stream=False)
         self._http.send_data(stream_id=stream_id, data=body, end_stream=True)
 
+        self.transmit()
+
+    def close_stream(self, stream_id: int):
+        # Sending
+        self._quic.reset_stream(stream_id=stream_id, error_code=ErrorCode.H3_REQUEST_CANCELLED)
         self.transmit()
 
     def cleanup(self) -> None:
