@@ -77,3 +77,9 @@ class ClientConnection(QuicConnectionProtocol):
         if self._http is not None:
             for http_event in self._http.handle_event(event):
                 self.http_event_received(http_event)
+
+    def cleanup_stream(self, stream_id: int) -> None:
+        self._request_events.pop(stream_id, None)
+        self._request_waiter.pop(stream_id, None)
+
+
