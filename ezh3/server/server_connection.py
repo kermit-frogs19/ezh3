@@ -18,6 +18,9 @@ class ServerConnection(QuicConnectionProtocol):
         self.server = server
         self._http: Optional[H3Connection] = None
         self._requests: dict[int, ServerRequest] = {}  # ✅ Stores request data (headers + body)
+        self._event_queue: asyncio.Queue[H3Event] = asyncio.Queue()
+        self._event_worker = asyncio.create_task(self._event_loop())
+
         self.on_close: Callable = lambda: None
 
     def quic_event_received(self, event: QuicEvent) -> None:
@@ -31,7 +34,17 @@ class ServerConnection(QuicConnectionProtocol):
 
         if self._http is not None:
             for h3_event in self._http.handle_event(event):
-                asyncio.create_task(self._h3_event_received(h3_event))
+                self._event_queue.put_nowait(h3_event)
+                # asyncio.create_task(self._h3_event_received(h3_event))
+
+    async def _event_loop(self):
+        while True:
+            try:
+                event = await self._event_queue.get()
+                await self._h3_event_received(event)
+            except Exception as e:
+                # Optional: log and continue loop
+                print(f"[WARN] Error in event processing: {e}")
 
     async def _h3_event_received(self, event: H3Event) -> None:
         if isinstance(event, HeadersReceived):
@@ -76,4 +89,5 @@ class ServerConnection(QuicConnectionProtocol):
 
     def cleanup(self) -> None:
         self._requests.clear()
+        self._event_worker.cancel()
         self.on_close()
