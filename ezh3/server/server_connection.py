@@ -3,7 +3,8 @@ from typing import Optional, Callable
 
 from aioquic.asyncio import QuicConnectionProtocol
 from aioquic.h3.connection import H3Connection, ErrorCode
-from aioquic.h3.events import H3Event, HeadersReceived, DataReceived
+from aioquic.h3.events import H3Event, HeadersReceived, DataReceived, WebTransportStreamDataReceived
+from collections import defaultdict
 
 from aioquic.quic.events import ProtocolNegotiated, StreamReset, QuicEvent, ConnectionTerminated
 
@@ -18,8 +19,8 @@ class ServerConnection(QuicConnectionProtocol):
         self.server = server
         self._http: Optional[H3Connection] = None
         self._requests: dict[int, ServerRequest] = {}  # ✅ Stores request data (headers + body)
-        self._event_queue: asyncio.Queue[H3Event] = asyncio.Queue()
-        self._event_worker = asyncio.create_task(self._event_loop())
+        self._stream_queues: dict[int, asyncio.Queue] = defaultdict(asyncio.Queue)
+        self._stream_tasks: dict[int, asyncio.Task] = {}
 
         self.on_close: Callable = lambda: None
 
@@ -34,17 +35,32 @@ class ServerConnection(QuicConnectionProtocol):
 
         if self._http is not None:
             for h3_event in self._http.handle_event(event):
-                self._event_queue.put_nowait(h3_event)
+                stream_id = h3_event.stream_id
+                queue = self._stream_queues[stream_id]
+                queue.put_nowait(h3_event)
+
+                # Start one task per stream if not already running
+                if stream_id not in self._stream_tasks:
+                    self._stream_tasks[stream_id] = asyncio.create_task(
+                        self._stream_worker(stream_id, queue)
+                    )
+
                 # asyncio.create_task(self._h3_event_received(h3_event))
 
-    async def _event_loop(self):
-        while True:
-            try:
-                event = await self._event_queue.get()
+    async def _stream_worker(self, stream_id: int, queue: asyncio.Queue):
+        try:
+            while True:
+                event = await queue.get()
                 await self._h3_event_received(event)
-            except Exception as e:
-                # Optional: log and continue loop
-                print(f"[WARN] Error in event processing: {e}")
+
+                if event.__class__ in {DataReceived, HeadersReceived} and event.stream_ended is True:
+                    break
+
+        finally:
+            # Cleanup once stream is fully handled
+            self._stream_queues.pop(stream_id, None)
+            # noinspection PyAsyncCall
+            self._stream_tasks.pop(stream_id, None)
 
     async def _h3_event_received(self, event: H3Event) -> None:
         if isinstance(event, HeadersReceived):
@@ -89,5 +105,4 @@ class ServerConnection(QuicConnectionProtocol):
 
     def cleanup(self) -> None:
         self._requests.clear()
-        self._event_worker.cancel()
         self.on_close()
